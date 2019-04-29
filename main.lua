@@ -152,7 +152,7 @@ function restartRace()
   fastestLapTimer = 10000000
   countdownTimer = 0
   countdownLastDigitTime = love.timer.getTime()
-  countdownDigit = 4
+  countdownDigit = 3
 
   Sounds.startRaceJingle:play()
 
@@ -265,7 +265,7 @@ function love.update(dt)
     makeCarEngineNoise(dt)
     updateExhaustPuffs(dt)
     countdownTimer = love.timer.getTime() - countdownLastDigitTime
-    if countdownTimer > 1.0 then
+    if countdownTimer > 1.4 then
       countdownDigit = countdownDigit - 1
       if countdownDigit == 0 then
         Sounds.countdownGo:play()
@@ -473,8 +473,36 @@ function love.draw()
     love.graphics.rectangle('fill', puff.x - 1, puff.y - 1, 2, 2)
   end
 
-  -- Draw the Lap number
+  -- Draw HUD at top
   if gameState == 'countdown' or gameState == "racing" then
+    -- Traffic Light
+    if raceTimer < 1.5 then
+      if countdownDigit == 3 then
+        love.graphics.setColor(.4,.4,.4,1.0)
+        love.graphics.circle('fill', 64, 4, 3, 32)
+        love.graphics.circle('fill', 72, 4, 3, 32)
+        love.graphics.circle('fill', 80, 4, 3, 32)
+      elseif countdownDigit == 2 then
+        love.graphics.setColor(.4,1.0,.4,1.0)
+        love.graphics.circle('fill', 64, 4, 3, 32)
+        love.graphics.setColor(.4,.4,.4,1.0)
+        love.graphics.circle('fill', 72, 4, 3, 32)
+        love.graphics.circle('fill', 80, 4, 3, 32)
+      elseif countdownDigit == 1 then
+        love.graphics.setColor(.4,1.0,.4,1.0)
+        love.graphics.circle('fill', 64, 4, 3, 32)
+        love.graphics.circle('fill', 72, 4, 3, 32)
+        love.graphics.setColor(.4,.4,.4,1.0)
+        love.graphics.circle('fill', 80, 4, 3, 32)
+      elseif countdownDigit == 0 then
+        love.graphics.setColor(.4,1.0,.4,1.0)
+        love.graphics.circle('fill', 64, 4, 3, 32)
+        love.graphics.circle('fill', 72, 4, 3, 32)
+        love.graphics.setColor(1.0,.4,.4,1.0)
+        love.graphics.circle('fill', 80, 4, 3, 32)
+      end
+    end
+
     -- Lap
     love.graphics.setColor(1,1,1,1)
     love.graphics.print("Lap "..math.max(1, currLapNumber).." / "..TOTAL_NUM_LAPS, 146, 1, 0, 0.5, 0.5)
