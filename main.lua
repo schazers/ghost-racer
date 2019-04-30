@@ -163,7 +163,7 @@ function love.load()
   end)
 
   -- Careful: below line will reset user and world scoreboard
-  resetAllStoredData()
+  --resetAllStoredData()
 end
 
 function resetAllStoredData()
