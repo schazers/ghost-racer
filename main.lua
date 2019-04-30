@@ -229,9 +229,7 @@ function love.keypressed(key, scancode, isrepeat)
       castle.post.create {
         message = 'See if you can beat my ghost!',
         media = 'capture',
-        data = {
-          currRaceGhostData
-        }
+        data = currRaceGhostData
       }
     end)
   end
