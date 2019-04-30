@@ -9,25 +9,31 @@ local storage = {}
 
 -- Get "User" storage value for given key
 -- (or use the default value specified)
-storage.getUserValue = function(key,default)
+storage.getUserValue = function(key,default,callback)
     local retValue = nil
     -- set the default while we wait for response
     storage[key] = default
 
     network.async(function()
         local retValue = castle.storage.get(key)
-        print("getUserValue["..key.."]:"..(retValue or "<nil>"))
+        --print("getUserValue["..key.."]:"..(retValue or "<nil>"))
         -- store the final setting (or default if none found)
         storage[key] = retValue or default
+        if callback ~= nil then
+          callback()
+        end
     end)
 end
 
 -- Set "User" storage value (if null passed - key will be deleted)
 storage.setUserValue = function(key,value)
     local retValue = nil
-    print("setUserValue["..key.."]:"..(value or "<nil>"))
+    --print("setUserValue["..key.."]:"..(value or "<nil>"))
     network.async(function()
         castle.storage.set(key, value)
+
+        -- update the copy in local storage
+        storage[key] = value
     end)
 end
 
@@ -44,7 +50,7 @@ storage.getGlobalValue = function(key,default)
 
     network.async(function()
         local retValue = castle.storage.getGlobal(key)
-        print("getGlobalValue["..key.."]:"..(retValue or "<nil>"))
+        --print("getGlobalValue["..key.."]:"..(retValue or "<nil>"))
         -- store the final setting (or default if none found)
         storage[key] = retValue or default
     end)
@@ -53,9 +59,12 @@ end
 -- Set "Global" storage value (if null passed - key will be deleted)
 storage.setGlobalValue = function(key,value)
     local retValue = nil
-    print("setGlobalValue["..key.."]:"..(value or "<nil>"))
+    --print("setGlobalValue["..key.."]:"..(value or "<nil>"))
     network.async(function()
         castle.storage.setGlobal(key, value)
+
+        -- update the copy in local storage
+        storage[key] = value
     end)
 end
 

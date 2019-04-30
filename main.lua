@@ -49,31 +49,45 @@ local countdownTimer
 local countdownLastDigitTime
 local lapTimes
 local raceStartTime
-local TOTAL_NUM_LAPS = 5
+local TOTAL_NUM_LAPS = 3
 local CAR_MAX_SPEED = 50
 local clocks = {}
-local hasUpdatedRaceTimes = false
+local hasUpdatedRaceData = false
+local currFrameGhostData
+local currRaceGhostData
+local currRaceGhostSaveIntervalTimer
+local GHOST_DATA_SAVE_INTERVAL = 0.2
+local ghostDataToRaceAgainst = nil
+local isAbleToStartRace = false
+
+-- post stuff
+local ghostDataFromPost
+local ghostPostCreator
+
+local hasPrintedGhostData = false -- TODO(jason): remove this debug line
+
+-- open a ghost if one exists
+function castle.postopened(post)
+  ghostDataToRaceAgainst = post.data
+  if post.creator ~= nil then
+    ghostPostCreator = post.creator
+  end
+end
 
 -- Assets
 local carImage
 local raceTrackImage
 
--- Initializes the game
-function love.load()
-  -- Load save data
-
+function fetchStoredData(ghostFetchedCallback)
   storage.getUserValue("fastestUserRaceTime", 100000)
   storage.getUserValue("fastestUserLapTime", 100000)
+  storage.getUserValue("fastestUserGhostData", nil, ghostFetchedCallback)
 
   storage.getGlobalValue("fastestWorldRaceTime", 100000)
   storage.getGlobalValue("fastestWorldLapTime", 100000)
+end
 
-  -- Load assets
-  carImage = love.graphics.newImage('img/car.png')
-  raceTrackImage = love.graphics.newImage('img/race-track.png')
-  carImage:setFilter('nearest', 'nearest')
-  raceTrackImage:setFilter('nearest', 'nearest')
-
+local function loadSounds()
   Sounds.launchCar = Sound:new("launch_car.mp3", 1)
 
   Sounds.engine1 = Sound:new("engine1.mp3", 6)
@@ -117,24 +131,45 @@ function love.load()
   Sounds.finishLap = Sound:new("finish_lap.mp3", 1)
   Sounds.finalLapJingle = Sound:new("final_lap_jingle.mp3", 1)
   Sounds.finishLine = Sound:new("finish_line.mp3", 1)
+end
 
-  -- Load race track data (from an image)
+-- Initializes the game
+function love.load()
+
+  -- Load assets
+  loadSounds()
+  carImage = love.graphics.newImage('img/car.png')
+  raceTrackImage = love.graphics.newImage('img/race-track.png')
+  carImage:setFilter('nearest', 'nearest')
+  raceTrackImage:setFilter('nearest', 'nearest')
   raceTrackData = love.image.newImageData('img/race-track-data.png')
 
   puffs = {}
   car = createCar()
 
-  gameState = "title"
-
   Sounds.titleLoop:play()
 
-  -- Careful: will reset user and world scoreboard
-  -- resetAllStoredTimes()
+  gameState = "title"
+
+  fetchStoredData(function()
+    if storage.fastestUserGhostData ~= nil and ghostDataToRaceAgainst == nil then
+      print("Using User's Fastest Ghost Data!")
+      ghostDataToRaceAgainst = storage.fastestUserGhostData
+    elseif ghostDataToRaceAgainst ~= nil then
+      print("Using post's ghost data!")
+      currFrameGhostData = ghostDataToRaceAgainst['raceData'][1]
+    end
+    isAbleToStartRace = true
+  end)
+
+  -- Careful: below line will reset user and world scoreboard
+  resetAllStoredData()
 end
 
-function resetAllStoredTimes()
+function resetAllStoredData()
   storage.setUserValue("fastestUserRaceTime", 99999)
   storage.setUserValue("fastestUserLapTime", 99999)
+  storage.setUserValue("fastestUserGhostData", nil)
   storage.setGlobalValue("fastestWorldRaceTime", 99999)
   storage.setGlobalValue("fastestWorldLapTime", 99999)
 end
@@ -143,6 +178,12 @@ end
 function restartRace()
   puffs = {}
   car = createCar()
+
+  currRaceGhostData = {}
+  currRaceGhostData['lapTimes'] = {}
+  currRaceGhostData['raceData'] = {}
+  -- init this larger so that it saves ghost data on first frame
+  currRaceGhostSaveIntervalTimer = GHOST_DATA_SAVE_INTERVAL + 1.0
 
   lapTimes = {}
   currLapNumber = 0
@@ -161,11 +202,16 @@ function restartRace()
     clocks[k] = nil
   end
 
+  -- reset ghost data
+  if ghostDataToRaceAgainst ~= nil then
+    currFrameGhostData = ghostDataToRaceAgainst['raceData'][1]
+  end
+
   gameState = "race_intro"
 end
 
 function love.keypressed(key, scancode, isrepeat)
-  if gameState == 'title' and key == 'up' then
+  if gameState == 'title' and key == 'up' and isAbleToStartRace then
     Sounds.titleLoop:stop()
     restartRace()
   elseif gameState == 'racing' and key == 'space' then
@@ -178,6 +224,16 @@ function love.keypressed(key, scancode, isrepeat)
   elseif gameState == 'score_screen' and key == 'up' then
     Sounds.scoreScreenLoop:stop()
     restartRace()
+  elseif gameState == 'score_screen' and key == 'p' then
+    network.async(function()
+      castle.post.create {
+        message = 'See if you can beat my ghost!',
+        media = 'capture',
+        data = {
+          currRaceGhostData
+        }
+      }
+    end)
   end
 end
 
@@ -245,12 +301,32 @@ local function updateClocks(dt)
   end
 end
 
+-- Debug Helper
+function printRaceData(data)
+  for i,v in ipairs(data) do
+    print('-------------')
+    print('t: '..data[i].t)
+    print('x: '..data[i].x)
+    print('y: '..data[i].y)
+    print('r: '..data[i].rotation)
+  end
+end
+
 -- Updates the game state
 function love.update(dt)
   updateClocks(dt)
 
   spawnExhaustPuffs(dt)
   updateExhaustPuffs(dt)
+
+  -- if storage.fastestUserGhostData ~= nil then
+  --   if hasPrintedGhostData == false then
+  --     hasPrintedGhostData = true
+  --     print("User's Fastest Ghost Found!")
+  --     printRaceData(storage.fastestUserGhostData['raceData'])
+  --     currFrameGhostData = storage.fastestUserGhostData['raceData'][1]
+  --   end
+  -- end
 
   -- Countdown at start of race
   if gameState == "race_intro" then
@@ -293,18 +369,19 @@ function love.update(dt)
   -- When race is finished
   elseif gameState == "finished" then
 
-    if hasUpdatedRaceTimes == false then
-      hasUpdatedRaceTimes = true
-      print("raceTimer: "..raceTimer)
-      print("fastesLapTimer: "..fastestLapTimer)
-      print("storage.fastestUserRaceTime: "..storage.fastestUserRaceTime)
-      print("storage.fastestUserLapTime: "..storage.fastestUserLapTime)
-      print("storage.fastestWorldRaceTime: "..storage.fastestWorldRaceTime)
-      print("storage.fastestWorldLapTime: "..storage.fastestWorldLapTime)
+    if hasUpdatedRaceData == false then
+      hasUpdatedRaceData = true
+      -- print("raceTimer: "..raceTimer)
+      -- print("fastesLapTimer: "..fastestLapTimer)
+      -- print("storage.fastestUserRaceTime: "..storage.fastestUserRaceTime)
+      -- print("storage.fastestUserLapTime: "..storage.fastestUserLapTime)
+      -- print("storage.fastestWorldRaceTime: "..storage.fastestWorldRaceTime)
+      -- print("storage.fastestWorldLapTime: "..storage.fastestWorldLapTime)
 
       -- TODO(jason): celebrate new user/global PRs somehow...
       if raceTimer < storage.fastestUserRaceTime then
         storage.setUserValue("fastestUserRaceTime", raceTimer)
+        storage.setUserValue("fastestUserGhostData", currRaceGhostData)
       end
 
       if fastestLapTimer < storage.fastestUserLapTime then
@@ -325,7 +402,6 @@ function love.update(dt)
     car.speed = car.speed * 0.98
 
     --TODO(jason): play diff sound depending upon whether ghost beaten or not
-    --TODO(jason): brief delay before playing jingle
     if clocks['finishRaceWonJingle'] == nil then
       clocks['finishRaceWonJingle'] = cron.after(2, function() 
         Sounds.finishRaceWonJingle:play()
@@ -340,6 +416,34 @@ function love.update(dt)
     
   -- When player is racing
   elseif gameState == "racing" then
+
+    if ghostDataToRaceAgainst ~= nil then
+      for i,v in ipairs(ghostDataToRaceAgainst['raceData']) do
+        if raceTimer > ghostDataToRaceAgainst['raceData'][i].t then
+          -- TODO(jason): Do linear interpolation between time t and the previous time
+          -- to compute a position x,y, and rotation r, at which to render the ghost
+          -- instead of passing currGhostDataIndex to Draw, store the interpolated data for this frame
+
+          -- if end of race, mark ghost data with 'done' sentinel so it won't render
+          if i == #ghostDataToRaceAgainst['raceData'] then
+            currFrameGhostData = 'done'
+          else
+            -- else lerp between this ghost frame and next ghost frame
+            local a = ghostDataToRaceAgainst['raceData'][i]
+            local b = ghostDataToRaceAgainst['raceData'][i+1]
+            local aWeight = (b.t - raceTimer) / GHOST_DATA_SAVE_INTERVAL
+            local bWeight = 1.0 - aWeight
+            currFrameGhostData = {
+              t = raceTimer,
+              x = a.x * aWeight + b.x * bWeight,
+              y = a.y * aWeight + b.y * bWeight,
+              rotation = a.rotation -- a.rotation * aWeight + b.rotation * bWeight, -- rotation bugged prob due to trig domain issue
+            }
+          end
+        end
+      end
+    end
+
     makeCarEngineNoise(dt)
 
     -- Control the car with arrow keys
@@ -361,6 +465,18 @@ function love.update(dt)
     car.rotation = (car.rotation + 2 * math.pi) % (2 * math.pi)
 
     updateCarPosition(dt)
+
+    -- save one ghost data point
+    if currRaceGhostSaveIntervalTimer > GHOST_DATA_SAVE_INTERVAL then
+      currRaceGhostData['raceData'][#currRaceGhostData['raceData'] + 1] = {
+        t = raceTimer,
+        x = car.x,
+        y = car.y,
+        rotation = car.rotation,
+      }
+
+      currRaceGhostSaveIntervalTimer = 0.0
+    end
 
     -- Check what terrain the car is currently on by looking at the race track data image
     local pixelX = math.min(math.max(0, math.floor(car.x)), 191)
@@ -406,6 +522,7 @@ function love.update(dt)
             fastestLapTimer = currLapTimer
           end
           lapTimes[currLapNumber] = currLapTimer
+          currRaceGhostData['lapTimes'][currLapNumber] = currLapTimer
           print("Lap "..currLapNumber.." time: "..currLapTimer)
         end
 
@@ -414,6 +531,16 @@ function love.update(dt)
         currLapNumber = currLapNumber + 1
 
         if currLapNumber > TOTAL_NUM_LAPS then
+          -- save one last frame of ghost data
+          currRaceGhostData['raceData'][#currRaceGhostData['raceData'] + 1] = {
+            t = raceTimer,
+            x = car.x,
+            y = car.y,
+            rotation = car.rotation,
+          }
+
+          currRaceGhostData['raceTime'] = raceTimer
+
           -- Race completed
           Sounds.finishLine:play()
           Sounds.playingLoopFast:stop()
@@ -436,6 +563,7 @@ function love.update(dt)
       end
     end
     car.hopSlideTimer = car.hopSlideTimer + dt
+    currRaceGhostSaveIntervalTimer = currRaceGhostSaveIntervalTimer + dt
     raceTimer = raceTimer + dt
     currLapTimer = currLapTimer + dt
   end
@@ -473,9 +601,23 @@ function love.draw()
     love.graphics.rectangle('fill', puff.x - 1, puff.y - 1, 2, 2)
   end
 
-  -- Draw HUD at top
   if gameState == 'countdown' or gameState == "racing" then
-    -- Traffic Light
+
+    -- Draw the Ghost
+    if ghostDataToRaceAgainst ~= nil and currFrameGhostData ~= 'done' then
+      -- TODO(jason): make ghost flash really subtly?
+        -- (maybe set alpha to 0 for last 50 ms of every second?)
+
+      love.graphics.setColor(1,1,1,0.38) -- ghost is partially transparent
+
+      local ghostSprite = math.floor((currFrameGhostData.rotation + radiansPerSprite / 2) / radiansPerSprite) + 1
+      if currFrameGhostData.rotation >= math.pi then
+        ghostSprite = 18 - ghostSprite
+      end
+      drawSprite(carImage, 12, 12, ghostSprite, currFrameGhostData.x - 6, currFrameGhostData.y - 6, currFrameGhostData.rotation >= math.pi)
+    end
+
+    -- Traffic Light for Countdown
     if raceTimer < 1.5 then
       if countdownDigit == 3 then
         love.graphics.setColor(.4,.4,.4,1.0)
@@ -503,12 +645,13 @@ function love.draw()
       end
     end
 
-    -- Lap
     love.graphics.setColor(1,1,1,1)
-    love.graphics.print("Lap "..math.max(1, currLapNumber).." / "..TOTAL_NUM_LAPS, 146, 1, 0, 0.5, 0.5)
 
     -- Time
     love.graphics.print(getTimeString(raceTimer), 100, 1, 0, 0.5, 0.5)
+
+    -- Lap
+    love.graphics.print("Lap "..math.max(1, currLapNumber).." / "..TOTAL_NUM_LAPS, 146, 1, 0, 0.5, 0.5)
   end
 
   if gameState == 'score_screen' then
@@ -523,13 +666,19 @@ function love.draw()
 
     love.graphics.setColor(1,1,1,1)
     love.graphics.print('Press up arrow to race again', 4,2, 0, .4, .4)
+
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.print('Press P to post your ghost', 43, 170, 0, 0.7, 0.7)
   end
 
   if gameState == 'title' then
     love.graphics.setColor(0, 0, 0, 0.78)
     love.graphics.rectangle('fill', 0, 0, RENDER_SCALE * GAME_WIDTH, RENDER_SCALE * GAME_HEIGHT)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.print('Press up arrow to start race', 32, 98, 0, .8, .8)
+
+    if isAbleToStartRace then
+      love.graphics.setColor(1,1,1,1)
+      love.graphics.print('Press up arrow to start race', 32, 98, 0, .8, .8)
+    end
 
     -- world high scores
     if storage.fastestWorldRaceTime < 99999 then
@@ -549,7 +698,7 @@ function love.draw()
 
     -- TODO(jason): draw avatar of challenger
     -- TODO(jason): draw time of challenger's ghost
-    --love.graphics.print(getTimeString(raceTimer), 45, 90, 0, 1.5, 1.5)
+    --love.graphics.print(getTimeString(ghostRaceTime), 45, 90, 0, 1.5, 1.5)
   end
 end
 
