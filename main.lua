@@ -6,6 +6,10 @@ if CASTLE_PREFETCH then
   CASTLE_PREFETCH({
     'sound.lua',
     'sounds.lua',
+    'img/car.png',
+    'img/race-track.png',
+    'img/race-track-data.png',
+    'img/lil-adventurer.png',
     'assets/snd/playing_loop_normal.mp3',
     'assets/snd/playing_loop_fast.mp3',
     'assets/snd/countdown_digit.mp3',
@@ -59,6 +63,7 @@ local currRaceGhostSaveIntervalTimer
 local GHOST_DATA_SAVE_INTERVAL = 0.2
 local ghostDataToRaceAgainst = nil
 local isAbleToStartRace = false
+local shouldDrawAdventurer = false
 
 -- post stuff
 local ghostDataFromPost
@@ -83,6 +88,7 @@ local msgFromReferrer = initialParams and initialParams.msg or '<no msg>'
 -- Assets
 local carImage
 local raceTrackImage
+local lilAdventurerImage
 
 
 function fetchStoredData(ghostFetchedCallback)
@@ -147,6 +153,7 @@ function love.load()
   if referrer ~= nil then
     print("referrerTitle: "..referrerTitle)
     print("message received: "..msgFromReferrer)
+    shouldDrawAdventurer = true
   end
 
   -- Load assets
@@ -156,6 +163,8 @@ function love.load()
   carImage:setFilter('nearest', 'nearest')
   raceTrackImage:setFilter('nearest', 'nearest')
   raceTrackData = love.image.newImageData('img/race-track-data.png')
+  lilAdventurerImage = love.graphics.newImage('img/lil-adventurer.png')
+  lilAdventurerImage:setFilter('nearest', 'nearest')
 
   puffs = {}
   car = createCar()
@@ -604,6 +613,11 @@ function love.draw()
 
   -- Draw the race track
   love.graphics.draw(raceTrackImage, 0, 0)
+
+  -- Draw the lil adventurer
+  if shouldDrawAdventurer then
+    drawSprite(lilAdventurerImage, 8, 8, 1, 46, 2)
+  end
 
   -- Draw the car
   local radiansPerSprite = 2 * math.pi / 16
