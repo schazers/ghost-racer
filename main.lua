@@ -145,9 +145,6 @@ function love.load()
 
   -- TODO(jason): if arrived from castle-adventure, then go back to it when the race is beaten
   if referrer ~= nil then
-    for k,v in pairs(referrer) do
-      print("k: "..k..", v: "..v)
-    end
     print("referrerTitle: "..referrerTitle)
     print("message received: "..msgFromReferrer)
   end
