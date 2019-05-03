@@ -133,8 +133,14 @@ local function loadSounds()
   Sounds.finishLine = Sound:new("finish_line.mp3", 1)
 end
 
+local referrer = castle.game.getReferrer()
+local referrerTitle = referrer and referrer.title or '<no referrer>'
+
 -- Initializes the game
 function love.load()
+
+  -- TODO(jason): if arrived from castle-adventure, then go back to it when the race is beaten
+  print("referrer: "..referrer..", referrerTitle: "..referrerTitle)
 
   -- Load assets
   loadSounds()
