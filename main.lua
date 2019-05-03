@@ -422,7 +422,7 @@ function love.update(dt)
             -- TODO(jason): maybe show score_screen before going back to referring game?
             if referrer ~= nil then
               network.async(function()
-                castle.game.load(referrer, {msg = 'Message received from ghost-racer' })
+                castle.game.load(referrer[url], {msg = 'Message received from ghost-racer' })
               end)
             else
               gameState = "score_screen"
