@@ -74,9 +74,14 @@ function castle.postopened(post)
   end
 end
 
+-- Get referring game
+local referrer = castle.game.getReferrer()
+local referrerTitle = referrer and referrer.title or '<no referrer>'
+
 -- Assets
 local carImage
 local raceTrackImage
+
 
 function fetchStoredData(ghostFetchedCallback)
   storage.getUserValue("fastestUserRaceTime", 100000)
@@ -133,14 +138,13 @@ local function loadSounds()
   Sounds.finishLine = Sound:new("finish_line.mp3", 1)
 end
 
-local referrer = castle.game.getReferrer()
-local referrerTitle = referrer and referrer.title or '<no referrer>'
-
 -- Initializes the game
 function love.load()
 
   -- TODO(jason): if arrived from castle-adventure, then go back to it when the race is beaten
-  print("referrer: "..referrer..", referrerTitle: "..referrerTitle)
+  if referrer ~= nil then
+    print("referrer: "..referrer..", referrerTitle: "..referrerTitle)
+  end
 
   -- Load assets
   loadSounds()
@@ -412,7 +416,14 @@ function love.update(dt)
         if clocks['goToScoreScreen'] == nil then
           clocks['goToScoreScreen'] = cron.after(4.3, function()
             Sounds.scoreScreenLoop:play()
-            gameState = "score_screen"
+            -- TODO(jason): if referrer is castle-adventure, castle.game.load on that game
+            if referrer ~= nil then
+              network.async(function()
+                castle.game.load(referrer, {msg = 'Message received from ghost-racer' })
+              end)
+            else
+              gameState = "score_screen"
+            end
           end)
         end
       end)
