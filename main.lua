@@ -74,9 +74,11 @@ function castle.postopened(post)
   end
 end
 
--- Get referring game
+-- Get referring game data
 local referrer = castle.game.getReferrer()
 local referrerTitle = referrer and referrer.title or '<no referrer>'
+local initialParams = castle.game.getInitialParams()
+local msgFromReferrer = initialParams and initialParams.msg or '<no msg>'
 
 -- Assets
 local carImage
@@ -147,6 +149,7 @@ function love.load()
       print("k: "..k..", v: "..v)
     end
     print("referrerTitle: "..referrerTitle)
+    print("message received: "..msgFromReferrer)
   end
 
   -- Load assets
@@ -422,7 +425,7 @@ function love.update(dt)
             -- TODO(jason): maybe show score_screen before going back to referring game?
             if referrer ~= nil then
               network.async(function()
-                castle.game.load(referrer[url], {msg = 'Message received from ghost-racer' })
+                castle.game.load(referrer.url, {msg = 'Message received from ghost-racer' })
               end)
             else
               gameState = "score_screen"
