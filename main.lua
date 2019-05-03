@@ -143,7 +143,10 @@ function love.load()
 
   -- TODO(jason): if arrived from castle-adventure, then go back to it when the race is beaten
   if referrer ~= nil then
-    print("referrer: "..referrer..", referrerTitle: "..referrerTitle)
+    for k,v in pairs(referrer) do
+      print("k: "..k..", v: "..v)
+    end
+    print("referrerTitle: "..referrerTitle)
   end
 
   -- Load assets
@@ -416,7 +419,7 @@ function love.update(dt)
         if clocks['goToScoreScreen'] == nil then
           clocks['goToScoreScreen'] = cron.after(4.3, function()
             Sounds.scoreScreenLoop:play()
-            -- TODO(jason): if referrer is castle-adventure, castle.game.load on that game
+            -- TODO(jason): maybe show score_screen before going back to referring game?
             if referrer ~= nil then
               network.async(function()
                 castle.game.load(referrer, {msg = 'Message received from ghost-racer' })
