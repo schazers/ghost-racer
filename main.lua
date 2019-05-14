@@ -34,11 +34,6 @@ if CASTLE_PREFETCH then
   })
 end
 
--- Render constants
-local GAME_WIDTH = 192
-local GAME_HEIGHT = 192
-local RENDER_SCALE = 3
-
 -- Game variables
 local car
 local puffs
@@ -530,7 +525,7 @@ function love.update(dt)
     car.bounceVelocityY = car.bounceVelocityY * 0.90
 
     -- If the car ever gets out of bounds, reset it
-    if car.x < 0 or car.y < 0 or car.x > GAME_WIDTH or car.y > GAME_HEIGHT then
+    if car.x < 0 or car.y < 0 or car.x > love.graphics.getWidth() or car.y > love.graphics.getHeight() then
       car = createCar()
     end
 
@@ -606,8 +601,6 @@ end
 -- Renders the game
 function love.draw()
   -- Scale and crop the screen
-  love.graphics.setScissor(0, 0, RENDER_SCALE * GAME_WIDTH, RENDER_SCALE * GAME_HEIGHT)
-  love.graphics.scale(RENDER_SCALE, RENDER_SCALE)
   love.graphics.clear(0, 0, 0)
   love.graphics.setColor(1, 1, 1)
 
@@ -688,7 +681,7 @@ function love.draw()
 
   if gameState == 'score_screen' then
     love.graphics.setColor(0, 0, 0, 0.78)
-    love.graphics.rectangle('fill', 0, 0, RENDER_SCALE * GAME_WIDTH, RENDER_SCALE * GAME_HEIGHT)
+    love.graphics.rectangle('fill', 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
     love.graphics.setColor(1,1,1,1)
     love.graphics.print(getTimeString(raceTimer), 43, 90, 0, 1.5, 1.5)
 
@@ -705,7 +698,7 @@ function love.draw()
 
   if gameState == 'title' then
     love.graphics.setColor(0, 0, 0, 0.78)
-    love.graphics.rectangle('fill', 0, 0, RENDER_SCALE * GAME_WIDTH, RENDER_SCALE * GAME_HEIGHT)
+    love.graphics.rectangle('fill', 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
 
     if isAbleToStartRace then
       love.graphics.setColor(1,1,1,1)
