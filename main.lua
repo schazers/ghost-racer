@@ -690,10 +690,10 @@ function love.draw()
     end
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.print('Press up arrow to race again', 4,2, 0, .4, .4)
+    love.graphics.print('Press UP to race', 4,2, 0, .4, .4)
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.print('Press P to post your ghost', 43, 170, 0, 0.7, 0.7)
+    love.graphics.print('P to share ghost', 43, 170, 0, 0.7, 0.7)
   end
 
   if gameState == 'title' then
@@ -702,7 +702,7 @@ function love.draw()
 
     if isAbleToStartRace then
       love.graphics.setColor(1,1,1,1)
-      love.graphics.print('Press up arrow to start race', 32, 98, 0, .8, .8)
+      love.graphics.print('Press UP to race', 32, 98, 0, .8, .8)
     end
 
     -- world high scores
